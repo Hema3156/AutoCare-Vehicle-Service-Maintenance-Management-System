@@ -1,0 +1,145 @@
+-- =====================================================================
+-- AutoCare: Vehicle Service & Maintenance Management System
+-- DBMS Level 3 Mini Project | Team 4 | Section D
+-- File 1/5 : DDL  (CREATE / DROP) - the 11 base tables + 1 audit table
+-- =====================================================================
+CREATE DATABASE IF NOT EXISTS AutoCareDB;
+USE AutoCareDB;
+
+-- DROP (children first so the script is re-runnable)
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS APPOINTMENT_AUDIT, INVOICE, PAYMENT, SERVICE_PART, SPARE_PART,
+                     SERVICE_RECORD, APPOINTMENT, SERVICE_TYPE, VEHICLE, STAFF, CUSTOMER, USER_ACCOUNT;
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE USER_ACCOUNT (
+    User_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Name VARCHAR(100) NOT NULL,
+    Email VARCHAR(150) NOT NULL UNIQUE,
+    Phone VARCHAR(15) UNIQUE,
+    Password_Hash VARCHAR(255) NOT NULL,
+    Role VARCHAR(20) NOT NULL,
+    Created_At DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE CUSTOMER (
+    Customer_ID INT PRIMARY KEY AUTO_INCREMENT,
+    User_ID INT NOT NULL UNIQUE,
+    Address VARCHAR(255),
+    FOREIGN KEY (User_ID) REFERENCES USER_ACCOUNT(User_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE STAFF (
+    Staff_ID INT PRIMARY KEY AUTO_INCREMENT,
+    User_ID INT NOT NULL UNIQUE,
+    Designation VARCHAR(100) NOT NULL,
+    Hire_Date DATE,
+    FOREIGN KEY (User_ID) REFERENCES USER_ACCOUNT(User_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE VEHICLE (
+    Vehicle_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Customer_ID INT NOT NULL,
+    Registration_No VARCHAR(30) NOT NULL UNIQUE,
+    Make VARCHAR(60) NOT NULL,
+    Model VARCHAR(60) NOT NULL,
+    Year INT,
+    Fuel_Type VARCHAR(30),
+    FOREIGN KEY (Customer_ID) REFERENCES CUSTOMER(Customer_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE SERVICE_TYPE (
+    Service_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Service_Name VARCHAR(100) NOT NULL,
+    Description TEXT,
+    Base_Price DECIMAL(10,2) NOT NULL,
+    Estimated_Duration INT,
+    Warranty_Days INT DEFAULT 0
+);
+
+CREATE TABLE APPOINTMENT (
+    Appointment_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Vehicle_ID INT NOT NULL,
+    Service_ID INT NOT NULL,
+    Staff_ID INT,
+    Appointment_DateTime DATETIME NOT NULL,
+    Status VARCHAR(30) NOT NULL,
+    Problem_Description TEXT,
+    FOREIGN KEY (Vehicle_ID) REFERENCES VEHICLE(Vehicle_ID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (Service_ID) REFERENCES SERVICE_TYPE(Service_ID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (Staff_ID) REFERENCES STAFF(Staff_ID)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE SERVICE_RECORD (
+    Service_Record_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Appointment_ID INT NOT NULL UNIQUE,
+    Inspection_Summary TEXT,
+    Diagnosis TEXT,
+    Labor_Cost DECIMAL(10,2) DEFAULT 0,
+    Total_Cost DECIMAL(10,2) DEFAULT 0,
+    Completed_Date DATE,
+    FOREIGN KEY (Appointment_ID) REFERENCES APPOINTMENT(Appointment_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE SPARE_PART (
+    Part_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Part_Name VARCHAR(100) NOT NULL,
+    Part_Number VARCHAR(60) UNIQUE,
+    Stock_Qty INT DEFAULT 0,
+    Unit_Price DECIMAL(10,2) NOT NULL,
+    Reorder_Level INT DEFAULT 0
+);
+
+CREATE TABLE SERVICE_PART (
+    Service_Record_ID INT NOT NULL,
+    Part_ID INT NOT NULL,
+    Quantity INT NOT NULL,
+    Unit_Cost DECIMAL(10,2) NOT NULL,
+    PRIMARY KEY (Service_Record_ID, Part_ID),
+    FOREIGN KEY (Service_Record_ID) REFERENCES SERVICE_RECORD(Service_Record_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (Part_ID) REFERENCES SPARE_PART(Part_ID)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE PAYMENT (
+    Payment_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Appointment_ID INT NOT NULL,
+    Payment_Date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Amount DECIMAL(10,2) NOT NULL,
+    Payment_Method VARCHAR(30) NOT NULL,
+    Payment_Status VARCHAR(30) NOT NULL,
+    Transaction_Ref VARCHAR(100) UNIQUE,
+    FOREIGN KEY (Appointment_ID) REFERENCES APPOINTMENT(Appointment_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE INVOICE (
+    Invoice_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Appointment_ID INT NOT NULL UNIQUE,
+    Invoice_Date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Subtotal DECIMAL(10,2) NOT NULL,
+    Tax DECIMAL(10,2) NOT NULL,
+    Total_Amount DECIMAL(10,2) NOT NULL,
+    Status VARCHAR(30) NOT NULL,
+    FOREIGN KEY (Appointment_ID) REFERENCES APPOINTMENT(Appointment_ID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+-- Extra table (audit trail) populated by a trigger
+CREATE TABLE APPOINTMENT_AUDIT (
+    Audit_ID INT PRIMARY KEY AUTO_INCREMENT,
+    Appointment_ID INT NOT NULL,
+    Old_Status VARCHAR(30),
+    New_Status VARCHAR(30),
+    Changed_At DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+SHOW TABLES;
